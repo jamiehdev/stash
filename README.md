@@ -2,7 +2,7 @@
 <p align="center">
   <img src="./.github/screenshot.png" alt="stash web ui" width="80%" />
 </p>
-<p align="center">content encrypted client-side with AES-256-GCM. the key stays in the URL fragment and never leaves your browser.</p>
+<p align="center">client-side AES-256-GCM encryption. key never leaves your browser.</p>
 
 ---
 

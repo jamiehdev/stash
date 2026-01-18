@@ -52,8 +52,17 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("POST /api/paste", s.handleCreate)
 	s.mux.HandleFunc("GET /api/paste/{id}", s.handleGet)
 	s.mux.HandleFunc("DELETE /api/paste/{id}", s.handleDelete)
+	s.mux.HandleFunc("GET /app.js", s.handleStatic)
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /p/{id}", s.handleIndex)
+}
+
+func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
+	if s.static == nil {
+		http.NotFound(w, r)
+		return
+	}
+	s.static.ServeHTTP(w, r)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

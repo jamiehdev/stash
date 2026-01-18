@@ -1,6 +1,10 @@
-# stash
+<p align="center"><strong>stash</strong> - encrypted pastebin in go</p>
+<p align="center">
+  <img src="./.github/screenshot.png" alt="stash web ui" width="80%" />
+</p>
+<p align="center">content encrypted client-side with AES-256-GCM. the key stays in the URL fragment and never leaves your browser.</p>
 
-encrypted pastebin. content is encrypted client-side with AES-256-GCM before hitting the server. the key stays in the URL fragment and never leaves your browser/device.
+---
 
 ## run the server
 

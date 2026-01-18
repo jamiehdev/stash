@@ -5,7 +5,6 @@
   const path = window.location.pathname;
   const hash = window.location.hash;
 
-  // check if viewing paste
   if (path.startsWith('/p/') && hash.startsWith('#v1:')) {
     viewMode();
   } else {
@@ -14,15 +13,15 @@
 
   function createMode() {
     app.innerHTML = `
-      <textarea id="content" placeholder="Paste your content here..."></textarea>
+      <textarea id="content" placeholder="paste content here..."></textarea>
       <div class="controls">
         <select id="ttl">
           <option value="3600">1 hour</option>
           <option value="21600">6 hours</option>
-          <option value="86400">24 hours</option>
+          <option value="86400" selected>24 hours</option>
           <option value="604800">7 days</option>
         </select>
-        <button id="submit">Create Paste</button>
+        <button id="submit">create paste</button>
       </div>
       <div id="result"></div>
     `;
@@ -37,30 +36,26 @@
     const btn = document.getElementById('submit');
 
     if (!content) {
-      result.innerHTML = '<p class="error">Please enter some content</p>';
+      result.innerHTML = '<p class="error">enter some content first</p>';
       return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Encrypting...';
+    btn.textContent = 'encrypting...';
 
     try {
-      // generate key
       const key = await crypto.subtle.generateKey(
         { name: 'AES-GCM', length: 256 },
         true,
         ['encrypt', 'decrypt']
       );
 
-      // generate delete token
       const deleteToken = arrayToBase64url(crypto.getRandomValues(new Uint8Array(16)));
 
-      // hash delete token for server
       const tokenBytes = new TextEncoder().encode(deleteToken);
       const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
       const deleteHash = arrayToHex(new Uint8Array(hashBuffer));
 
-      // encrypt
       const nonce = crypto.getRandomValues(new Uint8Array(12));
       const plaintext = new TextEncoder().encode(content);
       const ciphertext = await crypto.subtle.encrypt(
@@ -69,17 +64,14 @@
         plaintext
       );
 
-      // create blob: version(1) || nonce(12) || ciphertext+tag
       const blob = new Uint8Array(1 + 12 + ciphertext.byteLength);
       blob[0] = 0x01;
       blob.set(nonce, 1);
       blob.set(new Uint8Array(ciphertext), 13);
 
-      // export key
       const keyBytes = await crypto.subtle.exportKey('raw', key);
       const keyB64 = arrayToBase64url(new Uint8Array(keyBytes));
 
-      // send to server
       const resp = await fetch('/api/paste', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,53 +82,56 @@
         })
       });
 
-      if (!resp.ok) throw new Error('Failed to create paste');
+      if (!resp.ok) throw new Error('failed to create paste');
 
       const data = await resp.json();
       const pasteUrl = window.location.origin + '/p/' + data.id + '#v1:' + keyB64;
       const deleteUrl = window.location.origin + '/api/paste/' + data.id + '?token=' + deleteToken;
 
       result.innerHTML = `
-        <p><strong>Paste URL:</strong></p>
-        <p><a href="${pasteUrl}">${pasteUrl}</a></p>
-        <p><strong>Delete URL:</strong></p>
-        <p><a href="${deleteUrl}">${deleteUrl}</a></p>
-        <p><em>Expires: ${new Date(data.expires_at).toLocaleString()}</em></p>
+        <div class="result">
+          <div class="result-section">
+            <p class="result-label">paste url</p>
+            <a class="result-url" href="${pasteUrl}">${pasteUrl}</a>
+          </div>
+          <div class="result-section">
+            <p class="result-label">delete url</p>
+            <a class="result-url" href="${deleteUrl}">${deleteUrl}</a>
+          </div>
+          <p class="result-meta">expires ${formatExpiry(data.expires_at)}</p>
+        </div>
       `;
     } catch (err) {
-      result.innerHTML = '<p class="error">Error: ' + err.message + '</p>';
+      result.innerHTML = '<p class="error">error: ' + err.message + '</p>';
     }
 
     btn.disabled = false;
-    btn.textContent = 'Create Paste';
+    btn.textContent = 'create paste';
   }
 
   async function viewMode() {
-    app.innerHTML = '<p class="loading">Decrypting...</p>';
+    app.innerHTML = '<p class="loading">decrypting</p>';
 
     try {
       const id = path.split('/p/')[1];
-      const keyB64 = hash.substring(4); // remove #v1:
+      const keyB64 = hash.substring(4);
 
-      // fetch blob
       const resp = await fetch('/api/paste/' + id);
       if (!resp.ok) {
         if (resp.status === 404) {
-          app.innerHTML = '<p class="error">Paste not found or expired</p>';
+          app.innerHTML = '<p class="error">paste not found or expired</p>';
           return;
         }
-        throw new Error('Failed to fetch paste');
+        throw new Error('failed to fetch paste');
       }
 
       const data = await resp.json();
       const blob = base64urlToArray(data.content);
 
-      // parse blob
-      if (blob[0] !== 0x01) throw new Error('Unsupported version');
+      if (blob[0] !== 0x01) throw new Error('unsupported version');
       const nonce = blob.slice(1, 13);
       const ciphertext = blob.slice(13);
 
-      // import key
       const keyBytes = base64urlToArray(keyB64);
       const key = await crypto.subtle.importKey(
         'raw',
@@ -146,7 +141,6 @@
         ['decrypt']
       );
 
-      // decrypt
       const plaintext = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: nonce },
         key,
@@ -154,17 +148,38 @@
       );
 
       const text = new TextDecoder().decode(plaintext);
-      const pre = document.createElement('pre');
-      pre.textContent = text;
-      app.innerHTML = '';
-      app.appendChild(pre);
-
-      const info = document.createElement('p');
-      info.innerHTML = '<em>Expires: ' + new Date(data.expires_at).toLocaleString() + '</em>';
-      app.appendChild(info);
+      app.innerHTML = `
+        <pre>${escapeHtml(text)}</pre>
+        <p class="view-meta">expires ${formatExpiry(data.expires_at)}</p>
+      `;
     } catch (err) {
-      app.innerHTML = '<p class="error">Decryption failed: ' + err.message + '</p>';
+      app.innerHTML = '<p class="error">decryption failed: ' + err.message + '</p>';
     }
+  }
+
+  function formatExpiry(isoDate) {
+    const d = new Date(isoDate);
+    const now = new Date();
+    const diffMs = d - now;
+
+    if (diffMs < 0) return 'expired';
+
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffDays > 0) return `in ${diffDays}d ${diffHrs % 24}h`;
+    if (diffHrs > 0) return `in ${diffHrs}h`;
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    return `in ${diffMins}m`;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function arrayToBase64url(arr) {

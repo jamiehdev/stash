@@ -15,6 +15,7 @@
     app.innerHTML = `
       <textarea id="content" placeholder="paste content here..."></textarea>
       <div class="controls">
+        <span class="control-label">expires in</span>
         <select id="ttl">
           <option value="3600">1 hour</option>
           <option value="21600">6 hours</option>
@@ -22,6 +23,10 @@
           <option value="604800">7 days</option>
         </select>
         <button id="submit">create paste</button>
+        <span class="security-hint">
+          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          e2e
+        </span>
       </div>
       <div id="result"></div>
     `;
@@ -88,19 +93,40 @@
       const pasteUrl = window.location.origin + '/p/' + data.id + '#v1:' + keyB64;
       const deleteUrl = window.location.origin + '/api/paste/' + data.id + '?token=' + deleteToken;
 
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(pasteUrl);
+        copied = true;
+      } catch (e) {}
+
       result.innerHTML = `
         <div class="result">
-          <div class="result-section">
-            <p class="result-label">paste url</p>
-            <a class="result-url" href="${pasteUrl}">${pasteUrl}</a>
+          <div class="success-header">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            ${copied ? 'link copied to clipboard' : 'paste created'}
           </div>
           <div class="result-section">
-            <p class="result-label">delete url</p>
-            <a class="result-url" href="${deleteUrl}">${deleteUrl}</a>
+            <a class="result-url" href="${pasteUrl}">${pasteUrl}</a>
+            <div class="button-row">
+              <button class="button-secondary" data-copy="${escapeAttr(pasteUrl)}">copy link</button>
+              <button class="button-secondary" data-copy="${escapeAttr(deleteUrl)}">copy delete link</button>
+            </div>
           </div>
           <p class="result-meta">expires ${formatExpiry(data.expires_at)}</p>
         </div>
       `;
+
+      result.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const url = btn.getAttribute('data-copy');
+          try {
+            await navigator.clipboard.writeText(url);
+            const orig = btn.textContent;
+            btn.textContent = 'copied!';
+            setTimeout(() => btn.textContent = orig, 1500);
+          } catch (e) {}
+        });
+      });
     } catch (err) {
       result.innerHTML = '<p class="error">error: ' + err.message + '</p>';
     }
@@ -149,9 +175,25 @@
 
       const text = new TextDecoder().decode(plaintext);
       app.innerHTML = `
-        <pre>${escapeHtml(text)}</pre>
+        <div class="content-wrapper">
+          <pre>${escapeHtml(text)}</pre>
+          <button class="copy-btn" title="Copy to clipboard">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
         <p class="view-meta">expires ${formatExpiry(data.expires_at)}</p>
       `;
+
+      const copyBtn = app.querySelector('.copy-btn');
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+          setTimeout(() => {
+            copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+          }, 1500);
+        } catch (e) {}
+      });
     } catch (err) {
       app.innerHTML = '<p class="error">decryption failed: ' + err.message + '</p>';
     }
@@ -180,6 +222,10 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function escapeAttr(str) {
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function arrayToBase64url(arr) {

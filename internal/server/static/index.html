@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>stash</title>
+<title>stash - encrypted paste</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -20,6 +21,7 @@
   --border: #2d1f4a;
   --text: #e8e0f0;
   --text-muted: #6c6783;
+  --text-placeholder: #8a8299;
   --accent: #ff79c6;
   --accent-hover: #ff92d0;
   --purple: #bd93f9;
@@ -60,12 +62,9 @@ h1 {
 }
 
 h1::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 2px;
+  content: '>';
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .subtitle {
@@ -89,12 +88,13 @@ textarea {
 }
 
 textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--text-placeholder);
 }
 
 textarea:focus {
   outline: none;
-  border-color: var(--purple);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 121, 198, 0.15);
 }
 
 .controls {
@@ -106,6 +106,8 @@ textarea:focus {
 
 select {
   padding: 12px 16px;
+  padding-right: 36px;
+  text-align: center;
   background: var(--bg-surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -118,7 +120,6 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236c6783'%3E%3Cpath d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 36px;
 }
 
 select:hover,
@@ -239,6 +240,113 @@ pre {
   color: var(--text-muted);
 }
 
+.content-wrapper {
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.copy-btn:hover { opacity: 1; }
+
+.copy-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--text);
+  display: block;
+}
+
+.control-label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.security-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.security-hint svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.how-it-works {
+  margin-top: 12px;
+}
+
+.how-it-works summary {
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.how-it-works summary:hover {
+  color: var(--text);
+}
+
+.how-it-works p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.success-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--success);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.success-header svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.button-secondary {
+  padding: 8px 14px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.button-secondary:hover {
+  border-color: var(--purple);
+  background: var(--bg-surface);
+}
+
 @media (max-width: 480px) {
   body {
     padding: 24px 16px;
@@ -248,7 +356,24 @@ pre {
     flex-direction: column;
   }
 
+  .control-label {
+    display: none;
+  }
+
+  .security-hint {
+    margin-left: 0;
+    justify-content: center;
+  }
+
   select, button {
+    width: 100%;
+  }
+
+  .button-row {
+    flex-direction: column;
+  }
+
+  .button-secondary {
     width: 100%;
   }
 }
@@ -259,6 +384,12 @@ pre {
   <header>
     <h1>stash</h1>
     <p class="subtitle">encrypted paste, client-side</p>
+    <details class="how-it-works">
+      <summary>how it works</summary>
+      <p>content is encrypted in your browser using AES-256-GCM
+      before being sent to the server. the decryption key stays
+      in the URL fragment and never leaves your device.</p>
+    </details>
   </header>
   <main id="app"></main>
 </div>

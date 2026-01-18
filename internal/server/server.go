@@ -53,6 +53,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("GET /api/paste/{id}", s.handleGet)
 	s.mux.HandleFunc("DELETE /api/paste/{id}", s.handleDelete)
 	s.mux.HandleFunc("GET /app.js", s.handleStatic)
+	s.mux.HandleFunc("GET /favicon.svg", s.handleStatic)
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /p/{id}", s.handleIndex)
 }
@@ -177,6 +178,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("<!DOCTYPE html><html><body>stash</body></html>"))
 		return
 	}
-	r.URL.Path = "/index.html"
-	s.static.ServeHTTP(w, r)
+	w.Header().Set("Content-Type", "text/html")
+	http.ServeFileFS(w, r, StaticFS, "static/index.html")
 }
